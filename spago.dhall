@@ -10,6 +10,9 @@ You can edit this file as you like.
   , "parsing"
   , "matryoshka"
   , "dodo-printer"
+  , "strings"
+  , "strings-extra"
+  , "generics-rep"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]

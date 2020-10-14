@@ -1,0 +1,63 @@
+{-
+data Type
+  = Type Symbol
+  | Function Type Type
+  | Sum Type Type
+  | Product Type Type
+
+data Term
+   -- | x
+   = Variable Symbol
+   -- | \x y z. term
+   | Abstraction (NonEmptyArray Symbol) Term
+   -- | f x
+   | Application Term Term
+   -- | Left x
+   | Left Term
+   -- | Right x
+   | Right Term
+   -- | Either :: (a -> c) -> (b -> c) -> Sum a b -> c
+   | Either Term Term Term
+   -- | Tuple x y
+   | Tuple Term Term
+   -- | First t
+   | First Term
+   -- | Second t
+   | Second Term
+
+data AST
+  -- | type A
+  = TypeDecl Symbol
+  -- | f : A + B * C
+  -- | f = <term>
+  | TermDef Symbol Type Term
+-}
+
+-- TypeDecl:
+type A
+type B
+
+-- TermDef:
+{-
+TermDef
+  "idA"
+  Function (Type "A") (Type "A")
+  Abstraction ["x"]
+    Variable "x"
+-}
+-- idA : A -> A
+-- idA = \x. x
+
+{-
+TermDef
+  "apply"
+  Function
+      Function (Type "A") (Type "B")
+      Function (Type "A") (Type "B")
+  Abstraction ["f", "a"]
+    Application
+        Variable "f"
+        Variable "a"
+-}
+-- apply : (A -> B) -> A -> B
+-- apply = \f a. f a
