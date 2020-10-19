@@ -10,6 +10,7 @@ newtype Symbol = Symbol String
 
 derive instance genericSymbol :: Generic Symbol _
 derive newtype instance showSymbol :: Show Symbol
+derive newtype instance eqSymbol :: Eq Symbol
 
 data Type
   = Type Symbol
@@ -17,6 +18,7 @@ data Type
   | Sum Type Type
   | Product Type Type
 
+derive instance eqType :: Eq Type
 derive instance genericType :: Generic Type _
 
 instance showType :: Show Type where
@@ -43,17 +45,19 @@ data Term
    | Second
 
 derive instance genericTerm :: Generic Term _
+derive instance eqTerm :: Eq Term
 
 instance showTerm :: Show Term where
   show t = genericShow t
 
 data AST
   -- | type A
-  = TypeDecl Symbol Type
+  = TypeDecl Symbol
   -- | f : A + B * C
   -- | f = <term>
   | TermDef Symbol Type Term
 
+derive instance eqAST :: Eq AST
 derive instance genericAST :: Generic AST _
 
 instance showAST :: Show AST where

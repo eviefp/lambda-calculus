@@ -13,6 +13,9 @@ You can edit this file as you like.
   , "strings"
   , "strings-extra"
   , "generics-rep"
+  , "debug"
+  , "test-unit"
+  , "quickcheck"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
