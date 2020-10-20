@@ -12,9 +12,13 @@ derive newtype instance showSymbol :: Show Symbol
 derive newtype instance eqSymbol :: Eq Symbol
 
 data Type
+  -- | A, B, ..., Abc, ABC
   = Type Symbol
+  -- | A -> B, A -> B -> C ~ A -> (B -> C)
   | Function Type Type
+  -- | A + B + C ~ A + (B + C)
   | Sum Type Type
+  -- | A * B * C ~ A * (B * C)
   | Product Type Type
 
 derive instance eqType :: Eq Type
@@ -24,23 +28,24 @@ instance showType :: Show Type where
   show t = genericShow t
 
 data Term
-   -- | x
+   -- | x, y, z
    = Variable Symbol
-   -- | \x y z. term
+   -- | \x. term, \x. \y. x
+   -- | Later, we might add syntactic sugar e.g., \x y. x
    | Abstraction Symbol Term
-   -- | f x
+   -- | f x, x x, (\x. x) y
    | Application Term Term
-   -- -- | Left x
+   -- -- | Left
    | Left
-   -- -- | Right x
+   -- -- | Right
    | Right
-   -- -- | Either :: (a -> c) -> (b -> c) -> Sum a b -> c
+   -- -- | Either
    | Either
-   -- -- | Tuple x y
+   -- -- | Tuple
    | Tuple
-   -- -- | First t
+   -- -- | First
    | First
-   -- -- | Second t
+   -- -- | Second
    | Second
 
 derive instance genericTerm :: Generic Term _
@@ -51,6 +56,7 @@ instance showTerm :: Show Term where
 
 data AST
   -- | type A
+  -- | type B
   = TypeDecl Symbol
   -- | f : A + B * C
   -- | f = <term>

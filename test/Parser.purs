@@ -115,7 +115,7 @@ termParser = T.suite "term parser" do
         , positiveInputs:
             [ "\\x. y", "\\xy. xy" ]
         , negativeInputs:
-            [ "\\\\x. y", "\\x y", "\\x \\y. y" ]
+            [ "\\\\x. y", "\\x", "\\x \\y. y" ]
         , specificData:
             [ "\\a. \\b. \\c. a"
                 /\ (S.Abstraction
@@ -289,8 +289,12 @@ astParser = T.suite "ast parser" do
             [ "type A"
             , "f : A -> B\nf = \\x. y"
             , """
+
 -- comment here
+
 {- hello -}
+
+
 type A
 type B
 f : A -> A
