@@ -6,7 +6,6 @@ import Control.Alternative ((<|>))
 import Control.Lazy (fix)
 import Control.MonadPlus (guard)
 import Data.Array (many)
-import Data.Array.NonEmpty as NE
 import Data.Char.Unicode as CU
 import Data.Foldable (foldl)
 import Data.Identity (Identity)
@@ -62,10 +61,10 @@ anyKeyword =
 abstraction' :: Parser Term -> Parser Term
 abstraction' termParser = do
   parser.reservedOp "\\"
-  identifiers <- NE.some symbol
+  identifier <- symbol
   parser.reservedOp "."
   t <- termParser
-  pure $ Abstraction identifiers t
+  pure $ Abstraction identifier t
 
 application' :: Parser Term -> Parser Term
 application' termParser = do

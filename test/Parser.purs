@@ -4,7 +4,6 @@ module Test.Parser
 
 import Prelude
 
-import Data.Array.NonEmpty as NEA
 import Data.Either (Either(..))
 import Data.Foldable (traverse_)
 import Data.Tuple (Tuple, uncurry)
@@ -114,17 +113,21 @@ termParser = T.suite "term parser" do
         { name: "abstraction"
         , parser: abstraction' term
         , positiveInputs:
-            [ "\\x. y", "\\xy. xy", "\\x y z a b. a" ]
+            [ "\\x. y", "\\xy. xy" ]
         , negativeInputs:
             [ "\\\\x. y", "\\x y", "\\x \\y. y" ]
         , specificData:
-            [ "\\a b c. a"
+            [ "\\a. \\b. \\c. a"
                 /\ (S.Abstraction
-                       (NEA.cons'
-                           (sym "a")
-                           [sym "b", sym "c"]
+                       (sym "a")
+                       (S.Abstraction
+                           (sym "b")
+                           (S.Abstraction
+                             (sym "c")
+                             (var "a")
+                           )
                        )
-                       (var "a")
+
                     )
             ]
         }
@@ -146,7 +149,7 @@ termParser = T.suite "term parser" do
         { name: "term"
         , parser: term
         , positiveInputs:
-            [ "\\x y. Left x"
+            [ "\\x. \\y. Left x"
             , "(\\x. x) (Tuple a (\\x. y))"
             , "Left (f a)"
             ]
@@ -161,7 +164,7 @@ termParser = T.suite "term parser" do
                /\
                    S.Application
                         (S.Abstraction
-                            (pure $ sym "x")
+                            (sym "x")
                             (var "y")
                         )
                         (S.Application
@@ -252,8 +255,8 @@ astParser = T.suite "ast parser" do
         , positiveInputs:
             [ "f : A\nf = \\x. y"
             , "id : A -> A\nid = \\a. a"
-            , "either : (A -> C) -> (B -> C) -> (A + B) -> C\neither = \\left right e. Either left right e"
-            , "mapRight : (A -> C) -> (A + B) -> (A + C)\n mapRight = \\f e. Either (\\a . a) f e"
+            , "either : (A -> C) -> (B -> C) -> (A + B) -> C\neither = \\left. \\right. \\e. Either left right e"
+            , "mapRight : (A -> C) -> (A + B) -> (A + C)\n mapRight = \\f. \\e. Either (\\a . a) f e"
             ]
         , negativeInputs:
             [ "f : A"
@@ -296,18 +299,18 @@ f = \x. x
             ]
         , negativeInputs: []
         , specificData:
-            [ "type A" /\ [ S.TypeDecl (S.Symbol "A") ]
+            [ "type A" /\ [ S.TypeDecl (sym "A") ]
             , "type A\ntype B"
-                /\ [ S.TypeDecl (S.Symbol "A")
-                   , S.TypeDecl (S.Symbol "B")
+                /\ [ S.TypeDecl (sym "A")
+                   , S.TypeDecl (sym "B")
                    ]
             ,
 """type C
 
 type D
 """
-                /\ [ S.TypeDecl (S.Symbol "C")
-                   , S.TypeDecl (S.Symbol "D")
+                /\ [ S.TypeDecl (sym "C")
+                   , S.TypeDecl (sym "D")
                    ]
             ,
 """
@@ -319,18 +322,16 @@ f : A -> A
 f = \x. x
 """
             /\
-                [ S.TypeDecl (S.Symbol "A")
-                , S.TypeDecl (S.Symbol "B")
+                [ S.TypeDecl (sym "A")
+                , S.TypeDecl (sym "B")
                 , S.TermDef
-                    (S.Symbol "f")
+                    (sym "f")
                     (S.Function
-                        (S.Type (S.Symbol "A"))
-                        (S.Type (S.Symbol "A"))
-                    )
+                        (typ "A")
+                        (typ "A"))
                     (S.Abstraction
-                        (pure $ S.Symbol "x")
-                        (S.Variable (S.Symbol "x"))
-                    )
+                        (sym "x")
+                        (var "x"))
                 ]
             ]
         }

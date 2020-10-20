@@ -2,7 +2,6 @@ module LambdaCalculus.Syntax where
 
 import Prelude
 
-import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 
@@ -28,7 +27,7 @@ data Term
    -- | x
    = Variable Symbol
    -- | \x y z. term
-   | Abstraction (NonEmptyArray Symbol) Term
+   | Abstraction Symbol Term
    -- | f x
    | Application Term Term
    -- -- | Left x

@@ -13,6 +13,7 @@ You can edit this file as you like.
   , "strings"
   , "strings-extra"
   , "generics-rep"
+  , "ordered-collections"
   , "debug"
   , "test-unit"
   , "quickcheck"
