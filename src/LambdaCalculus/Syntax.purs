@@ -5,11 +5,15 @@ import Prelude
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 
-newtype Symbol = Symbol String
+data Symbol
+     = Symbol String
+     | Index Int
 
 derive instance genericSymbol :: Generic Symbol _
-derive newtype instance showSymbol :: Show Symbol
-derive newtype instance eqSymbol :: Eq Symbol
+derive instance eqSymbol :: Eq Symbol
+instance showSymbol :: Show Symbol where
+    show t = genericShow t
+
 
 data Type
   -- | A, B, ..., Abc, ABC
