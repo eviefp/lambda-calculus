@@ -58,6 +58,10 @@ simplify' =
         term -> term
 
 
+-- \x. x
+-- \x. 0
+-- \x. \y. x
+-- \x. \y. 1
 open :: S.Term -> S.Term -> S.Term
 open term replacement = go 0 term
   where
@@ -71,22 +75,6 @@ open term replacement = go 0 term
             | idx == outer -> replacement
             | otherwise    -> v
         t -> t
-
-substitute :: S.Symbol -> S.Term -> S.Term -> S.Term
-substitute variable term replacement =
-    case term of
-        S.Variable var
-            | variable == var -> replacement
-            | otherwise       -> S.Variable var
-        S.Application left right ->
-            S.Application
-                (substitute variable left replacement)
-                (substitute variable right replacement)
-        S.Abstraction var innerTerm ->
-            S.Abstraction
-                var
-                (substitute variable innerTerm replacement)
-        _ -> term
 
 mapKeys :: forall a k k1. Ord k1 => (k -> k1) -> Map k a -> Map k1 a
 mapKeys f = M.fromFoldable <<< mapArray (lmap f) <<< M.toUnfoldable

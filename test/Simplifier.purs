@@ -88,7 +88,7 @@ simplifierTests = T.suite "1" do
    test "ordering" do
       simplifiesTo "First ((\\x. Tuple a x) b)" "a"
       simplifiesTo "Either ((\\x. \\y. x) a) g (Left y)" "a"
-   test "failingTest" do
+   test "simplify multiple times" do
       simplifiesTo "((\\x. Either) b) f g (Right a)" "g a"
       simplifiesTo "((\\x. Either) b) ((\\y. f) x) g (Right a)" "g a"
 

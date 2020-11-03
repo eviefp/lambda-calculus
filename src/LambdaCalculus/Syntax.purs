@@ -14,7 +14,6 @@ derive instance eqSymbol :: Eq Symbol
 instance showSymbol :: Show Symbol where
     show t = genericShow t
 
-
 data Type
   -- | A, B, ..., Abc, ABC
   = Type Symbol
