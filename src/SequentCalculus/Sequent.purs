@@ -3,17 +3,18 @@ module SequentCalculus.Sequent where
 import Prelude
 
 import Data.Array as Array
-import Data.Foldable (elem, findMap, foldl)
+import Data.Foldable (any, elem, findMap, fold, foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.List (List)
 import Data.Maybe (Maybe(..))
+import Dodo as Dodo
 
 data Formula a
-    = Variable a
-    | Implication (Formula a) (Formula a)
-    | And (Formula a) (Formula a)
-    | Or (Formula a) (Formula a)
+    = Variable a -- "A" or "B"
+    | Implication (Formula a) (Formula a) -- Implication (Variable "A") (Variable "B") == A -> B
+    | And (Formula a) (Formula a) -- A /\ B
+    | Or (Formula a) (Formula a) -- A \/ B
 
 derive instance eqFormula :: Eq a => Eq (Formula a)
 derive instance genericFormula :: Generic (Formula a) _
@@ -21,11 +22,65 @@ derive instance genericFormula :: Generic (Formula a) _
 instance showFormula :: Show a => Show (Formula a) where
     show f = genericShow f
 
-infixr 7 Implication as :->:
-infixr 6 And as :/\:
-infixr 6 Or as :\/:
+printFormula :: forall ann. Formula String -> Dodo.Doc ann
+printFormula = case _ of
+    Variable a -> Dodo.text a
+    a :/\: b   -> par $ printFormula a <> Dodo.text " /\\ " <> printFormula b
+    a :\/: b   -> par $ printFormula a <> Dodo.text " \\/ " <> printFormula b
+    a :->: b   -> par $ printFormula a <> Dodo.text " -> " <> printFormula b
 
-data Sequent a = Sequent (Array (Formula a)) (Formula a)
+par :: forall ann. Dodo.Doc ann -> Dodo.Doc ann
+par = Dodo.enclose (Dodo.text "(") (Dodo.text ")")
+
+printSequent :: forall ann. Sequent String -> Dodo.Doc ann
+printSequent (hyps :=>: con) =
+    Dodo.foldWithSeparator
+        (Dodo.text ",")
+        (printFormula <$> hyps)
+    <> Dodo.text " => "
+    <> printFormula con
+
+-- TODO: Handle the branch better.
+printDerivation :: forall ann. Derivation (Sequent String) -> Dodo.Doc ann
+printDerivation = case _ of
+    Leaf a -> printSequent a
+    Next rule a next ->
+        printDerivation next
+            <> Dodo.break
+            <> Dodo.text "-------------------- " <> par (Dodo.text (show rule))
+            <> Dodo.break
+            <> printSequent a
+    Branch rule a left right ->
+        Dodo.text "left:"
+            <> Dodo.break
+            <> printDerivation left
+            <> Dodo.break
+            <> Dodo.text "right:"
+            <> Dodo.break
+            <> printDerivation right
+            <> Dodo.break
+            <> Dodo.text "branch end"
+            <> Dodo.break
+            <> Dodo.text "-------------------- " <> par (Dodo.text (show rule))
+            <> Dodo.break
+            <> printSequent a
+
+print :: forall ann. Dodo.Doc ann -> String
+print = Dodo.print Dodo.plainText Dodo.twoSpaces
+
+-- TODO: fold does not quite do the right thing; it's hard to tell list items apart.
+log :: Formula String -> String
+log =
+    fold
+        <<< map (print <<< printDerivation)
+        <<< buildDerivation
+        <<< formulaToSequent
+
+infixr 6 Implication as :->:
+infixr 7 And as :/\:
+infixr 7 Or as :\/:
+
+data Sequent a = Sequent (Array (Formula a)) (Formula a) -- hyps :=>: con
 
 derive instance genericSequent :: Generic (Sequent a) _
 
@@ -34,17 +89,13 @@ instance showSequent :: Show a => Show (Sequent a) where
 
 infixr 5 Sequent as :=>:
 
+formulaToSequent :: forall a. Formula a -> Sequent a
+formulaToSequent f = [] :=>: f
+
 sequentToFormula :: forall a. Sequent a -> Formula a
 sequentToFormula (xs :=>: con) = case Array.uncons xs of
     Just { head, tail } -> foldl (:/\:) head tail :->: con
     Nothing -> con
-
-formulaToSequent :: forall a. Formula a -> Sequent a
-formulaToSequent f = [] :=>: f
-
--- We have a formula
--- we can create a sequent
--- we search for a proof?
 
 data Rule
     = RAnd
@@ -73,6 +124,51 @@ derive instance genericDerivation :: Generic (Derivation a) _
 instance showDerivation :: Show a => Show (Derivation a) where
     show f = genericShow f
 
+buildDerivation :: forall a. Eq a => Sequent a -> List (Derivation (Sequent a))
+buildDerivation = case _ of
+    seq@(hyps :=>: a :->: b) ->
+        Next RImp seq <$> buildDerivation ((Array.cons a hyps) :=>: b)
+    seq@(hyps :=>: a :/\: b) ->
+        Branch RAnd seq
+            <$> buildDerivation (hyps :=>: a)
+            <*> buildDerivation (hyps :=>: b)
+    seq@(hyps :=>: con)
+      | Just res@(a :/\: b) <- findMap matchAnd hyps ->
+          Next LAnd seq
+              <$> buildDerivation (((Array.delete res hyps) <> [a, b]) :=>: con)
+      | Just res@(a :\/: b) <- findMap matchOr hyps ->
+        Branch LOr seq
+            <$> buildDerivation (((Array.delete res hyps) <> [a]) :=>: con)
+            <*> buildDerivation (((Array.delete res hyps) <> [b]) :=>: con)
+      | Just res@((a :\/: b) :->: c) <- findMap matchOrImp hyps ->
+        Next LOrImp seq
+            <$> buildDerivation (((Array.delete res hyps) <> [a :->: c, b :->: c]) :=>: con)
+      | Just res@((a :/\: b) :->: c) <- findMap matchAndImp hyps ->
+        Next LAndImp seq
+            <$> buildDerivation (((Array.delete res hyps) <> [a :->: b :->: c]) :=>: con)
+      | Just res@((a :->: b) :->: c) <- findMap matchImpImp hyps ->
+        Branch LImpImp seq
+            <$> buildDerivation (((Array.delete res hyps) <> [b :->: c, a]) :=>: b)
+            <*> buildDerivation (((Array.delete res hyps) <> [c]) :=>: con)
+      | Just res@(Variable a :->: b) <- findMap (matchVarImp hyps) hyps ->
+        Next L0Imp seq
+            <$> buildDerivation (((Array.delete res hyps) <> [b]) :=>: con)
+    seq@(hyps :=>: a :\/: b) ->
+            (Next ROr1 seq <$> buildDerivation (hyps :=>: a))
+            <>
+            (Next ROr2 seq <$> buildDerivation (hyps :=>: b))
+    seq@(hyps :=>: Variable a) ->
+        pure $ Leaf seq
+
+isProof :: forall a. Eq a => Derivation (Sequent a) -> Boolean
+isProof = case _ of
+    Leaf (hyps :=>: a) -> a `elem` hyps
+    Next _ _ d         -> isProof d
+    Branch _ _ d1 d2   -> isProof d1 && isProof d2
+
+tautology :: forall a. Eq a => Formula a -> Boolean
+tautology = any isProof <<< buildDerivation <<< formulaToSequent
+
 matchAnd :: forall a. Formula a -> Maybe (Formula a)
 matchAnd = case _ of
     f@(a :/\: b) -> Just f
@@ -83,57 +179,23 @@ matchOr = case _ of
     f@(a :\/: b) -> Just f
     _            -> Nothing
 
-matchImp :: forall a. Formula a -> Maybe (Formula a)
-matchImp = case _ of
-    f@(a :->: b) -> Just f
-    _            -> Nothing
+matchOrImp :: forall a. Formula a -> Maybe (Formula a)
+matchOrImp = case _ of
+    f@((a :\/: b) :->: c) -> Just f
+    _                     -> Nothing
 
--- Sequent $ [] => A \/ B -> B \/ A
--- [Next RImp $ A \/ B => B \/ A]
-buildDerivation :: forall a. Eq a => Sequent a -> List (Derivation (Sequent a))
-buildDerivation = case _ of
-    seq@(hyps :=>: con)
-      | Just res@(a :/\: b) <- findMap matchAnd hyps ->
-          Next LAnd seq
-              <$> buildDerivation (((Array.delete res hyps) <> [a, b]) :=>: con)
-      | Just res@(a :\/: b) <- findMap matchOr hyps ->
-        Branch LOr seq
-            <$> buildDerivation (((Array.delete res hyps) <> [a]) :=>: con)
-            <*> buildDerivation (((Array.delete res hyps) <> [b]) :=>: con)
-      | Just res@((a :\/: b) :->: c) <- findMap matchImp hyps ->
-        Next LOrImp seq
-            <$> buildDerivation (((Array.delete res hyps) <> [a :->: c, b :->: c]) :=>: con)
-      | Just res@((a :/\: b) :->: c) <- findMap matchImp hyps ->
-        Next LAndImp seq
-            <$> buildDerivation (((Array.delete res hyps) <> [a :->: b :->: c]) :=>: con)
-      | Just res@((a :->: b) :->: c) <- findMap matchImp hyps ->
-        Branch LImpImp seq
-            <$> buildDerivation (((Array.delete res hyps) <> [b :->: c, a]) :=>: b)
-            <*> buildDerivation (((Array.delete res hyps) <> [c]) :=>: con)
-      -- TODO: find all here!
-      | Just res@(Variable a :->: b) <- findMap matchImp hyps ->
-          case Variable a `elem` hyps of
-              false -> pure $ Leaf seq
-              true  ->
-                  Next L0Imp seq
-                      <$> buildDerivation (((Array.delete res hyps) <> [b]) :=>: con)
-    seq@(hyps :=>: Variable a) ->
-        pure $ Leaf seq
-    seq@(hyps :=>: a :->: b) ->
-        Next RImp seq <$> buildDerivation ((Array.cons a hyps) :=>: b)
-    seq@(hyps :=>: a :/\: b) ->
-        Branch RAnd seq
-            <$> buildDerivation (hyps :=>: a)
-            <*> buildDerivation (hyps :=>: b)
-    seq@(hyps :=>: a :\/: b) ->
-            (Next ROr1 seq <$> buildDerivation (hyps :=>: a))
-            <>
-            (Next ROr2 seq <$> buildDerivation (hyps :=>: b))
+matchAndImp :: forall a. Formula a -> Maybe (Formula a)
+matchAndImp = case _ of
+    f@((a :/\: b) :->: c) -> Just f
+    _                     -> Nothing
 
--- A => B -> A
-e1 :: Sequent String
-e1 = [Variable "A"] :=>: Variable "B" :->: Variable "A"
+matchImpImp :: forall a. Formula a -> Maybe (Formula a)
+matchImpImp = case _ of
+    f@((a :->: b) :->: c) -> Just f
+    _                     -> Nothing
 
--- _ => A /\ B -> A
-e2 :: Sequent String
-e2 = [] :=>: Variable "A" :/\: Variable "B" :->: Variable "A"
+matchVarImp :: forall a. Eq a => Array (Formula a) -> Formula a -> Maybe (Formula a)
+matchVarImp hyps = case _ of
+    f@(a :->: b)
+      | a `elem` hyps -> Just f
+    _                 -> Nothing
