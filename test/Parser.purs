@@ -97,7 +97,8 @@ termParser = T.suite "term parser" do
             , "a'b" /\ var "a'b"
             , "a_" /\ var "a_"
             , "a_c" /\ var "a_c"
-            -- , "α" /\ var "α"
+            , "α" /\ var "α"
+            , "αβγδ" /\ var "αβγδ"
             ]
         }
     testParser
@@ -181,7 +182,11 @@ typeParser = T.suite "type parser" do
         , parser: typeName
         , positiveInputs: [ "A", "B", "ABC", "Abc" ]
         , negativeInputs: [ "a", "aBC", "abc" ]
-        , specificData: []
+        , specificData:
+            [ "Γ" /\ S.Type (S.Symbol "Γ")
+            , "ΔΦΠ" /\ S.Type (S.Symbol "ΔΦΠ")
+            , "Ωα" /\ S.Type (S.Symbol "Ωα")
+            ]
         }
     testParser
         { name: "function"

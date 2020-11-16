@@ -3,7 +3,7 @@ module SequentCalculus.Sequent where
 import Prelude
 
 import Data.Array as Array
-import Data.Foldable (any, elem, findMap, fold, foldl)
+import Data.Foldable (any, elem, findMap, foldMap, foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.List (List)
@@ -40,30 +40,37 @@ printSequent (hyps :=>: con) =
     <> Dodo.text " => "
     <> printFormula con
 
--- TODO: Handle the branch better.
 printDerivation :: forall ann. Derivation (Sequent String) -> Dodo.Doc ann
-printDerivation = case _ of
-    Leaf a -> printSequent a
-    Next rule a next ->
-        printDerivation next
-            <> Dodo.break
-            <> Dodo.text "-------------------- " <> par (Dodo.text (show rule))
-            <> Dodo.break
-            <> printSequent a
-    Branch rule a left right ->
-        Dodo.text "left:"
-            <> Dodo.break
-            <> printDerivation left
-            <> Dodo.break
-            <> Dodo.text "right:"
-            <> Dodo.break
-            <> printDerivation right
-            <> Dodo.break
-            <> Dodo.text "branch end"
-            <> Dodo.break
-            <> Dodo.text "-------------------- " <> par (Dodo.text (show rule))
-            <> Dodo.break
-            <> printSequent a
+printDerivation = go ""
+  where
+    go :: String -> Derivation (Sequent String) -> Dodo.Doc ann
+    go branch = case _ of
+        Leaf a -> printSequent a
+        Next rule a next ->
+            printDerivation next
+                <> Dodo.break
+                <> Dodo.text "-------------------------------- " <> par (Dodo.text (show rule))
+                <> Dodo.break
+                <> printSequent a
+        Branch rule a left right ->
+            Dodo.text (branch <> "L")
+                <> Dodo.break
+                <> go (branch <> "L") left
+                <> Dodo.break
+                <> Dodo.break
+                <> Dodo.break
+                <> Dodo.text (branch <> "R")
+                <> Dodo.break
+                <> go (branch <> "R") right
+                <> Dodo.break
+                <> Dodo.break
+                <> Dodo.break
+                <> Dodo.text (branch <> "L      " <> branch <> "R")
+                <> Dodo.break
+                <> Dodo.text "-------------------------------- "
+                <> par (Dodo.text (show rule))
+                <> Dodo.break
+                <> printSequent a
 
 print :: forall ann. Dodo.Doc ann -> String
 print = Dodo.print Dodo.plainText Dodo.twoSpaces
@@ -71,7 +78,7 @@ print = Dodo.print Dodo.plainText Dodo.twoSpaces
 -- TODO: fold does not quite do the right thing; it's hard to tell list items apart.
 log :: Formula String -> String
 log =
-    fold
+    foldMap (\s -> "\n\n ================================ \n\n" <> s)
         <<< map (print <<< printDerivation)
         <<< buildDerivation
         <<< formulaToSequent

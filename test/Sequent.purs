@@ -2,39 +2,74 @@ module Test.Sequent
     ( suite
     ) where
 
-import Prelude
 import SequentCalculus.Sequent
 
+import Data.Traversable (traverse_)
+import Prelude (discard, ($))
 import Test.Unit (Test, TestSuite, test)
-import Test.Unit as Assert
 import Test.Unit as T
 import Test.Unit.Assert as AssertT
-import Text.Parsing.Parser (runParser)
+
+suite :: TestSuite
+suite = T.suite "sequent" do
+    tautologyTests
+    notTautologies
+
+tautologyTests :: TestSuite
+tautologyTests = T.suite "tautologies" do
+   traverse_ go
+        [ a :->: a
+        , a :->: a :->: a
+        , a :->: b :->: a
+        , a :\/: b :->: b :\/: a
+        , a :->: a :\/: b
+        , a :/\: b :->: b :/\: a
+        , (a :\/: b :->: c) :->: ((a :->: c) :/\: (b :->: c))
+        , (a :->: a :->: b) :->: (a :->: b)
+        , (c :->: a) :->: (c :->: b) :->: c :->: (a :/\: b)
+        , (a :->: c) :->: (b :->: c) :->: (a :\/: b) :->: c
+        , (a :->: b) :->: (a :/\: c) :->: (b :/\: c)
+        , (a :->: b) :->: (a :\/: c) :->: (b :\/: c)
+        , (b :->: c) :->: (a :->: b) :->: (a :->: c)
+        , (a :->: a :->: b) :->: (c :->: a) :->: (c :->: c :->: b)
+        ]
+  where
+    go :: Formula String -> TestSuite
+    go f =
+        test (print $ printFormula f)
+            $ assertTautology f
+
+notTautologies :: TestSuite
+notTautologies = T.suite "negative tests" do
+   traverse_ go
+        [ a
+        , a :->: b
+        , a :->: a :->: b
+        , (a :->: b) :->: (b :/\: c) :->: (a :/\: c)
+        ]
+  where
+    go :: Formula String -> TestSuite
+    go f =
+        test (print $ printFormula f)
+            $ assertFails f
 
 var :: String -> Formula String
 var = Variable
 
--- TODO: Add negative tests too!
-suite :: TestSuite
-suite = T.suite "sequent" do
-    tautologyTests
+a :: Formula String
+a = var "A"
+
+b :: Formula String
+b = var "B"
+
+c :: Formula String
+c = var "C"
 
 assertTautology :: Formula String -> Test
 assertTautology input =
     AssertT.assert (print $ printFormula input) (tautology input)
 
--- TODO: Add more positive tests
-tautologyTests :: TestSuite
-tautologyTests = T.suite "trivial" do
-   test "variables" do
-      assertTautology $ var "P" :->: var "P"
-      assertTautology $ var "P" :->: var "P" :->: var "P"
-      assertTautology $ var "A" :->: var "B" :->: var "A"
-      assertTautology $ var "A" :\/: var "B" :->: var "B" :\/: var "A"
-      assertTautology $ var "A" :->: var "A" :\/: var "B"
-      assertTautology $ var "A" :/\: var "B" :->: var "B" :/\: var "A"
-      assertTautology $ (var "A" :\/: var "B" :->: var "C") :->: ((var "A" :->: var "C") :/\: (var "B" :->: var "C"))
-      assertTautology $ (var "A" :->: var "A" :->: var "B") :->: (var "A" :->: var "B")
-      assertTautology $ (var "C" :->: var "A") :->: (var "C" :->: var "B") :->: var "C" :->: (var "A" :/\: var "B")
-      assertTautology $ (var "A" :->: var "C") :->: (var "B" :->: var "C") :->: (var "A" :\/: var "B") :->: var "C"
+assertFails :: Formula String -> Test
+assertFails input =
+    AssertT.assertFalse (print $ printFormula input) (tautology input)
 

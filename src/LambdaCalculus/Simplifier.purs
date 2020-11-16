@@ -57,11 +57,6 @@ simplify' =
                 term' -> S.Application term' (simplify' right)
         term -> term
 
-
--- \x. x
--- \x. 0
--- \x. \y. x
--- \x. \y. 1
 open :: S.Term -> S.Term -> S.Term
 open term replacement = go 0 term
   where

@@ -14,50 +14,10 @@ import Test.Unit as T
 import Test.Unit.Assert as AssertT
 import Text.Parsing.Parser (runParser)
 
-sym :: String -> S.Symbol
-sym = S.Symbol
-
-idx :: Int -> S.Term
-idx = S.Variable <<< S.Index
-
-var :: String -> S.Term
-var = S.Variable <<< S.Symbol
-
-abs :: String -> S.Term -> S.Term
-abs s t = S.Abstraction (sym s) t
-
-app :: S.Term -> S.Term -> S.Term
-app = S.Application
-
 suite :: TestSuite
 suite = T.suite "simplifier" do
     simplifierTests
     toLocallyNamedTests
-
-simplifyNothing :: String -> Test
-simplifyNothing input =
-    case runParser input term of
-       Left err -> Assert.failure $ "Parsing error: " <> show err
-       Right t -> AssertT.shouldEqual t (simplify t)
-
-simplifiesTo :: String -> String -> Test
-simplifiesTo input result =
-    case runParser input term, runParser result term of
-       Right t, Right e ->
-           AssertT.shouldEqual (simplify t) e
-       _, _ -> Assert.failure "baaaaaaad"
-
-locallyRenamesTo :: String -> S.Term -> Test
-locallyRenamesTo input exp =
-    case runParser input term of
-       Right t -> AssertT.shouldEqual (toLocallyNamed t) exp
-       _       -> Assert.failure "baaaaaaad"
-
-fromLocallyTo :: S.Term -> String -> Test
-fromLocallyTo exp input =
-    case runParser input term of
-       Right t -> AssertT.shouldEqual t (fromLocallyNamed exp)
-       _       -> Assert.failure "baaaaaaad"
 
 simplifierTests :: TestSuite
 simplifierTests = T.suite "1" do
@@ -91,12 +51,59 @@ simplifierTests = T.suite "1" do
    test "simplify multiple times" do
       simplifiesTo "((\\x. Either) b) f g (Right a)" "g a"
       simplifiesTo "((\\x. Either) b) ((\\y. f) x) g (Right a)" "g a"
-
+   test "bugs" do
+      simplifiesTo "(\\x. x (\\x. x)) a" "a (\\x. x)"
 
 toLocallyNamedTests :: TestSuite
 toLocallyNamedTests = T.suite "toLocallyNamed" do
     test "toLocallyNamed" do
         locallyRenamesTo "\\x. x" (abs "x" (idx 0))
+        locallyRenamesTo "\\x. x x" (abs "x" (app (idx 0) (idx 0)))
         locallyRenamesTo "\\x. y" (abs "x" (var "y"))
+        locallyRenamesTo "\\x. y x" (abs "x" (app (var "y") (idx 0)))
+        locallyRenamesTo "\\x. x (\\x. x)" (abs "x" (app (idx 0) (abs "x" (idx 0))))
+        locallyRenamesTo "\\x. x (\\y. x)" (abs "x" (app (idx 0) (abs "y" (idx 1))))
     test "fromLocallyNamed" do
         fromLocallyTo (abs "x" (idx 0)) "\\x. x"
+
+simplifyNothing :: String -> Test
+simplifyNothing input =
+    case runParser input term of
+       Left err -> Assert.failure $ "Parsing error: " <> show err
+       Right t -> AssertT.shouldEqual t (simplify t)
+
+simplifiesTo :: String -> String -> Test
+simplifiesTo input result =
+    case runParser input term, runParser result term of
+       Right t, Right e ->
+           AssertT.shouldEqual (simplify t) e
+       _, _ -> Assert.failure $ input <> " does not match" <> result
+
+locallyRenamesTo :: String -> S.Term -> Test
+locallyRenamesTo input exp =
+    case runParser input term of
+       Right t -> AssertT.shouldEqual (toLocallyNamed t) exp
+       _       -> Assert.failure input
+
+fromLocallyTo :: S.Term -> String -> Test
+fromLocallyTo exp input =
+    case runParser input term of
+       Right t -> AssertT.shouldEqual t (fromLocallyNamed exp)
+       _       -> Assert.failure input
+
+
+sym :: String -> S.Symbol
+sym = S.Symbol
+
+idx :: Int -> S.Term
+idx = S.Variable <<< S.Index
+
+var :: String -> S.Term
+var = S.Variable <<< S.Symbol
+
+abs :: String -> S.Term -> S.Term
+abs s t = S.Abstraction (sym s) t
+
+app :: S.Term -> S.Term -> S.Term
+app = S.Application
+

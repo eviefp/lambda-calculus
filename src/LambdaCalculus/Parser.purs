@@ -27,23 +27,20 @@ type Parser = ParserT String Identity
 symbol :: Parser Symbol
 symbol = do
    name <- parser.identifier
-   guard $ maybe false CU.isAsciiLower $ S.charAt 0 name
+   guard $ maybe false CU.isLower $ S.charAt 0 name
    pure $ Symbol name
 
 typeSymbol :: Parser Symbol
 typeSymbol = do
    name <- parser.identifier
-   guard $ maybe false CU.isAsciiUpper $ S.charAt 0 name
+   guard $ maybe false CU.isUpper $ S.charAt 0 name
    pure $ Symbol name
 
 -------------------------------------------------------------------------------
 -- Term
 
 variable :: Parser Term
-variable = do
-   name <- parser.identifier
-   guard $ maybe false CU.isAsciiLower $ S.charAt 0 name
-   pure $ Variable (Symbol name)
+variable = Variable <$> symbol
 
 keyword :: String -> Term -> Parser Term
 keyword name ctor =
