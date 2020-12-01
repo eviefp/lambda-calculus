@@ -25,6 +25,8 @@ What to add:
 
 ## TODO
 
+- pretty printer for LC
+
 Here's a list of things that would be nice to have but aren't trivial:
 
 - Sequent/PrettyPrinting, I would like to be able to put documents side-by-side

@@ -3,12 +3,11 @@ module CurryHoward where
 import Prelude
 
 import Control.Monad.RWS (get, put)
-import Control.Monad.State (State, evalState)
+import Control.Monad.State (State, evalState, gets)
 import Data.Foldable (find)
 import Data.Map (Map)
 import Data.Map as M
-import Data.Map as Map
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(..), fromMaybe, fromMaybe', maybe, maybe')
 import Data.String as C
 import Data.Traversable (traverse)
 import LambdaCalculus.Syntax as LC
@@ -31,47 +30,58 @@ typeToFormula = case _ of
 
 findTerm :: LC.Type -> Maybe LC.Term
 findTerm =
-    map (_ `evalState` { freshName: Map.empty, scope: Map.empty } )
+    map (_ `evalState` initialState)
         <<< map derivationToTerm
         <<< find SC.isProof
         <<< SC.buildDerivation
         <<< SC.formulaToSequent
         <<< typeToFormula
 
-
+-- TODO: This type is wrong.
 type DerivationState =
     { freshName :: Map String Int
     , scope     :: Map (SC.Formula String) String
     }
 
+initialState :: DerivationState
+initialState = mempty
+
 derivationToTerm
     :: SC.Derivation (SC.Sequent String)
     -> State DerivationState LC.Term
 derivationToTerm = case _ of
-    SC.Leaf (hyps :=>: var@(SC.Variable c)) ->
-        maybe
-            (unsafeCrashWith "did not find variable in hyps")
+    SC.Leaf (hyps :=>: var@(SC.Variable _)) ->
+        maybe'
+            (\_ -> unsafeCrashWith $ show hyps <> "|" <> show var)
             (\_ -> do
                 _ <- traverse findNameAndAddToScope hyps
                 LC.Variable <<< LC.Symbol <$> findNameAndAddToScope var
             )
             $ find (_ == var) hyps
     SC.Leaf _ ->
-        unsafeCrashWith "did not find variable in hyps"
-    SC.Next SC.LAnd (hyps :=>: and@(left :/\: right)) deriv -> do
-        c         <- derivationToTerm deriv
-        andTerm   <- lookup and
-        leftTerm  <- lookup left
-        rightTerm <- lookup right
-        substitute
-            { term: c
-            , from: andTerm
-            , to: LC.Application (LC.Application LC.Tuple leftTerm) rightTerm
-            }
+        unsafeCrashWith "wrong leaf type"
+    SC.Branch SC.RAnd (hyps :=>: (_ :/\: _)) left right -> do
+        a1 <- derivationToTerm left
+        b1 <- derivationToTerm right
+        pure $ LC.Application (LC.Application LC.Tuple a1) b1
+    SC.Next SC.ROr1 (hyps :=>: (_ :\/: _)) left -> do
+        a <- derivationToTerm left
+        pure $ LC.Application LC.Left a
+    SC.Next SC.ROr2 (hyps :=>: (_ :\/: _)) right -> do
+        a <- derivationToTerm right
+        pure $ LC.Application LC.Right a
+    SC.Next SC.RImp (hyps :=>: (a :->: _)) deriv -> do
+        b <- derivationToTerm deriv
+        aName <- lookup a
+        pure $ LC.Abstraction (LC.Symbol aName) b
+
     _ -> unsafeCrashWith "rest"
 
-lookup :: SC.Formula String -> State DerivationState LC.Term
-lookup it = unsafeCrashWith "later"
+lookup :: SC.Formula String -> State DerivationState String
+lookup it =
+    fromMaybe'
+        (\_ -> unsafeCrashWith "Could not find expected formula")
+        <<< M.lookup it <$> gets _.scope
 
 substitute
     :: { term :: LC.Term, from :: LC.Term, to :: LC.Term }
