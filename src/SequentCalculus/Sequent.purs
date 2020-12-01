@@ -17,6 +17,7 @@ data Formula a
     | Or (Formula a) (Formula a) -- A \/ B
 
 derive instance eqFormula :: Eq a => Eq (Formula a)
+derive instance ordFormula :: Ord a => Ord (Formula a)
 derive instance genericFormula :: Generic (Formula a) _
 
 instance showFormula :: Show a => Show (Formula a) where
