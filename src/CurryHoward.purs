@@ -3,7 +3,7 @@ module CurryHoward where
 import Prelude
 
 import Control.Monad.RWS (get, put)
-import Control.Monad.State (State, evalState, gets, runState)
+import Control.Monad.State (State, evalState)
 import Data.Foldable (find)
 import Data.Map (Map)
 import Data.Map as M
@@ -31,7 +31,7 @@ typeToFormula = case _ of
 
 findTerm :: LC.Type -> Maybe LC.Term
 findTerm =
-    (_ `evalState` Map.empty)
+    map (_ `evalState` { freshName: Map.empty, scope: Map.empty } )
         <<< map derivationToTerm
         <<< find SC.isProof
         <<< SC.buildDerivation
@@ -58,8 +58,25 @@ derivationToTerm = case _ of
             $ find (_ == var) hyps
     SC.Leaf _ ->
         unsafeCrashWith "did not find variable in hyps"
-    SC.Next SC.LAnd seq deriv -> do
-        c <- derivationToTerm deriv
+    SC.Next SC.LAnd (hyps :=>: and@(left :/\: right)) deriv -> do
+        c         <- derivationToTerm deriv
+        andTerm   <- lookup and
+        leftTerm  <- lookup left
+        rightTerm <- lookup right
+        substitute
+            { term: c
+            , from: andTerm
+            , to: LC.Application (LC.Application LC.Tuple leftTerm) rightTerm
+            }
+    _ -> unsafeCrashWith "rest"
+
+lookup :: SC.Formula String -> State DerivationState LC.Term
+lookup it = unsafeCrashWith "later"
+
+substitute
+    :: { term :: LC.Term, from :: LC.Term, to :: LC.Term }
+    -> State DerivationState LC.Term
+substitute { term } = pure term
 
 findNameAndAddToScope
     :: SC.Formula String
