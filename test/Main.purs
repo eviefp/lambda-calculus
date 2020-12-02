@@ -7,6 +7,7 @@ import Effect.Aff (launchAff_)
 import Test.Parser as Parser
 import Test.Simplifier as Simplifier
 import Test.Sequent as Sequent
+import Test.CurryHoward as CurryHoward
 import Test.Unit.Output.Fancy (runTest)
 
 main :: Effect Unit
@@ -14,3 +15,5 @@ main = launchAff_ $ runTest do
   Parser.suite
   Simplifier.suite
   Sequent.suite
+  CurryHoward.suite
+

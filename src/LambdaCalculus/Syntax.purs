@@ -24,6 +24,10 @@ data Type
   -- | A * B * C ~ A * (B * C)
   | Product Type Type
 
+infixr 7 Function as :->
+infixr 8 Product as :*
+infixr 8 Sum as :+
+
 derive instance eqType :: Eq Type
 derive instance genericType :: Generic Type _
 
